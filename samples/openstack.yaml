@@ -1,0 +1,138 @@
+# For a general description of what resources need to be created on
+# OpenStack, please check https://github.com/kubernetes-sigs/cluster-api-provider-openstack/blob/master/docs/config.md
+---
+apiVersion: cluster.k8s.io/v1alpha1
+kind: Cluster
+metadata:
+  name: test-cluster
+spec:
+    clusterNetwork:
+        services:
+            cidrBlocks: ["10.96.0.0/12"]
+        pods:
+            cidrBlocks: ["192.168.0.0/16"]
+        serviceDomain: cluster.local
+    providerSpec:
+      value:
+        apiVersion: openstackproviderconfig/v1alpha1
+        kind: OpenstackProviderSpec
+---
+# For all `providerSpec` supported fields, please check:
+# https://github.com/kubernetes-sigs/cluster-api-provider-openstack/blob/master/cmd/clusterctl/examples/openstack/machines.yaml.template
+# and https://github.com/kubernetes-sigs/cluster-api-provider-openstack/blob/master/pkg/apis/openstackproviderconfig/v1alpha1/types.go
+apiVersion: cluster.k8s.io/v1alpha1
+kind: MachineDeployment
+metadata:
+  name: mdcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      set: master
+  template:
+    metadata:
+      labels:
+        set: master
+        cluster.k8s.io/cluster-name: test-cluster
+    spec:
+      providerSpec:
+        value:
+          apiVersion: openstackproviderconfig/v1alpha1
+          kind: OpenstackProviderSpec
+          flavor: m1.medium
+          image: <CHANGE ME: image>
+          networks:
+          - uuid: <CHANGE ME: network>
+          rootVolume:
+            diskSize: 0
+            sourceType: ""
+            SourceUUID: ""
+          securityGroups:
+          - uuid: <CHANGE ME: security group ID>
+          userDataSecret:
+            name: master-user-data
+            namespace: openstack-provider-system
+          trunk: false
+      versions:
+        kubelet: 1.14.0
+        controlPlane: 1.14.0
+---
+# For all `providerSpec` supported fields, please check:
+# https://github.com/kubernetes-sigs/cluster-api-provider-openstack/blob/master/cmd/clusterctl/examples/openstack/machines.yaml.template
+# and https://github.com/kubernetes-sigs/cluster-api-provider-openstack/blob/master/pkg/apis/openstackproviderconfig/v1alpha1/types.go
+apiVersion: cluster.k8s.io/v1alpha1
+kind: MachineDeployment
+metadata:
+  name: mdw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      set: node
+  template:
+    metadata:
+      labels:
+        set: node
+        cluster.k8s.io/cluster-name: test-cluster
+    spec:
+      providerSpec:
+        value:
+          apiVersion: openstackproviderconfig/v1alpha1
+          kind: OpenstackProviderSpec
+          flavor: m1.medium
+          image: <CHANGE ME: image>
+          networks:
+          - uuid: <CHANGE ME: network>
+          rootVolume:
+            diskSize: 0
+            sourceType: ""
+            SourceUUID: ""
+          securityGroups:
+          - uuid: <CHANGE ME: security group ID>
+          userDataSecret:
+            name: worker-user-data
+            namespace: openstack-provider-system
+          trunk: false
+      versions:
+        kubelet: 1.14.0
+        controlPlane: 1.14.0
+---
+# For a detailed description, please check: https://github.com/kubernetes-sigs/cluster-api-provider-openstack/tree/master/cmd/clusterctl/examples/openstack/provider-component/user-data
+apiVersion: v1
+data:
+  userData: <CHANGE ME: base64 encoded cloud-init initialization script template>
+kind: Secret
+metadata:
+  name: master-user-data
+  namespace: openstack-provider-system
+type: Opaque
+---
+# For a detailed description, please check: https://github.com/kubernetes-sigs/cluster-api-provider-openstack/tree/master/cmd/clusterctl/examples/openstack/provider-component/user-data
+apiVersion: v1
+data:
+  userData: <CHANGE ME: base64 encoded cloud-init initialization script template>
+kind: Secret
+metadata:
+  name: worker-user-data
+  namespace: openstack-provider-system
+type: Opaque
+---
+apiVersion: v1
+data:
+  cacert: <CHANGE ME: base64 encoded cacert>
+  clouds.yaml: <CHANGE ME: base64 encoded clouds.yaml> # Check: https://github.com/kubernetes-sigs/cluster-api-provider-openstack/blob/master/pkg/cloud/openstack/clients/clouds.yaml and https://docs.openstack.org/python-openstackclient/latest/configuration/index.html#configuration-files
+kind: Secret
+metadata:
+  name: cloud-config
+  namespace: openstack-provider-system
+type: Opaque
+---
+# This is the entry to use from the `clouds.yaml` file
+apiVersion: v1
+data:
+  OS_CLOUD: <CHANGE ME: base64 encoded cloud name -- entry from clouds.yaml to use>
+kind: Secret
+metadata:
+  name: cloud-selector
+  namespace: openstack-provider-system
+type: Opaque
